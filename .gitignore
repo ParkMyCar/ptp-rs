@@ -1,0 +1,7 @@
+# Rust Specific Files
+/target
+**/*.rs.bk
+Cargo.lock
+
+# API Keys
+*.key
