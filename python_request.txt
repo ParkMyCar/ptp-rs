@@ -1,0 +1,23 @@
+Url
+https://passthepopcorn.me/torrents.php?name=miracle&searchstr=miracle&json=noredirect
+
+Headers
+{
+    'User-Agent': 'Wget/1.13.4', 
+    'Accept-Encoding': 'gzip, deflate', 
+    'Accept': '*/*', 
+    'Connection': 'keep-alive', 
+    'Cookie': 'PHPSESSID=vfk1h5pqngi911gegs91k33kr2; __cfduid=dbad8bbb53b342cc03dfa91c76887a57a1566780156; session=fEPxHzwyn9PQXoqzT7Z2sLeKnLpXsaqs%2B00SpEttICnJGzrrgBD%2BmUN0pwqX7zzRVvqoMXeInhJCNn1%2B6owTOc7TIaUchr1i6hvz8KdvhIsNl55G4aesHbhnhIWeyhW%2BFWDUoJJ2IUxMf0RCGSRvDQ%3D%3D'
+}
+Body
+None
+
+KWargs
+{
+    'timeout': None,
+    'allow_redirects': True,
+    'verify': True,
+    'proxies': OrderedDict(),
+    'stream': False,
+    'cert': None
+}

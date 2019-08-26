@@ -1,18 +1,24 @@
-use std::collections::HashMap;
-
 use ptp_rs::config;
-use reqwest;
+use ptp_rs::api::{API, SearchFilter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Hello world!");
-
-    let resp: HashMap<String, String> = reqwest::get("https://httpbin.org/ip")?
-        .json()?;
-
-    println!("{:#?}", resp);
-
     let config = config::get_config();
-    println!("{:?}", config);
+    let mut api = API::new(config);
+    
+    api.login();
+
+    let filters = SearchFilter {
+        name: Some("star trek into darkness".to_string()),
+        year: Some("2013".to_string()),
+    };
+    let search_resp = api.search(filters);
+    println!("{:#?}", search_resp.movies().pop().unwrap().Title);
+
+    for torrent in search_resp.movies().pop().unwrap().torrents() {
+        println!("{}GB", torrent.gb());
+    }
+
+    api.logout();
 
     Ok(())
 }

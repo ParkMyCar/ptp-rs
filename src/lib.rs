@@ -1,4 +1,7 @@
+pub mod api;
 pub mod config;
+pub mod movie;
+pub mod torrent;
 
 #[cfg(test)]
 mod tests {

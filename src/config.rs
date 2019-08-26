@@ -15,21 +15,21 @@ struct TomlConfig {
 struct TomlPtp {
     username: Option<String>,
     password: Option<String>,
-    passkey: Option<String>,
+    pass_key: Option<String>,
 }
 
 #[derive(Debug)]
 pub struct PtpKeys {
-    username: String,
-    password: String,
-    passkey: String,
+    pub username: String,
+    pub password: String,
+    pub pass_key: String,
 }
 impl PtpKeys {
-    pub fn new(username: String, password: String, passkey: String) -> PtpKeys {
+    pub fn new(username: String, password: String, pass_key: String) -> PtpKeys {
         PtpKeys {
             username,
             password,
-            passkey,
+            pass_key,
         }
     }
 }
@@ -49,7 +49,7 @@ pub fn get_config_from_file(config_filename: String) -> PtpKeys {
     PtpKeys::new(
         ptp_keys.username.expect("Error with the username!"),
         ptp_keys.password.expect("Errow with the password!"),
-        ptp_keys.passkey.expect("Error with the passkey!"),
+        ptp_keys.pass_key.expect("Error with the pass_key!"),
     )
 }
 
