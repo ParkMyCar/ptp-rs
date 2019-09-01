@@ -17,7 +17,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let movie = movies.get(1).unwrap();
     println!("Title: {:?}, Year: {:?}", movie.title(), movie.year());
     let torrent = movie.torrents().iter().next().unwrap().clone();
-    api.download_torrent(&torrent).expect("Could not save torrent file!");
+    api.download_torrent(&torrent)
+        .expect("Could not save torrent file!");
 
     api.logout();
 

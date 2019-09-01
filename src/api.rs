@@ -1,11 +1,15 @@
 use regex::Regex;
 use reqwest;
-use reqwest::header::HeaderMap;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_derive::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, IntoInnerError};
+use std::iter::FromIterator;
 use url::Url;
+
+use std::thread::sleep;
+use std::time::Duration;
 
 use crate::config::PtpKeys;
 use crate::movie::Movie;
@@ -42,32 +46,56 @@ impl API {
         }
     }
 
+    pub fn base_get(
+        &self,
+        url: &str,
+        params: Option<HashMap<&str, &str>>,
+    ) -> Result<reqwest::Response, reqwest::Error> {
+        let root_url = format!("https://passthepopcorn.me/{}", url);
+
+        let url = match params {
+            Some(params) => Url::parse_with_params(root_url.as_str(), params)
+                .unwrap()
+                .into_string(),
+            None => Url::parse(root_url.as_str()).unwrap().into_string(),
+        };
+
+        self.client.get(&url).headers(get_headers()).send()
+    }
+
+    pub fn base_post(&self, url: &str, form_data: Option<HashMap<&str, &str>>) {
+        let root_url = format!("https://passthepopcorn.me/{}", url);
+        let url = Url::parse(root_url.as_str()).unwrap();
+        let url_str = url.as_str();
+
+        self.client
+            .post(url_str)
+            .headers(get_headers())
+            .form(&form_data)
+            .send()
+            .unwrap();
+    }
+
     /* Login */
     pub fn login(&mut self) {
         let mut data = HashMap::new();
-        data.insert("username", self.username.clone());
-        data.insert("password", self.password.clone());
-        data.insert("passkey", self.pass_key.clone());
+        data.insert("username", self.username.as_str());
+        data.insert("password", self.password.as_str());
+        data.insert("passkey", self.pass_key.as_str());
 
         // Make a login request to set our cookie
         println!("Logging in...");
-        self.client
-            .post("https://passthepopcorn.me/ajax.php?action=login")
-            .form(&data)
-            .send()
-            .unwrap();
+        self.base_post("ajax.php?action=login", Some(data));
         self.logged_in = true;
 
         // Make a request to get an auth_key
-        let mut auth_req = self
-            .client
-            .get("https://passthepopcorn.me/index.php")
-            .send()
-            .unwrap();
+        let mut auth_req = self.base_get("index.php", None).unwrap();
         let body = auth_req.text().unwrap();
 
         self.auth_key = Some(get_auth_key_from_body(&body));
         println!("Login Successful!");
+
+        sleep(Duration::new(20, 0));
     }
 
     /* Logout */
@@ -78,11 +106,8 @@ impl API {
         println!("Logging out...");
         match &self.auth_key {
             Some(key) => {
-                params.insert("auth", key);
-                let url = Url::parse_with_params("https://passthepopcorn.me/logout.php", params)
-                    .unwrap()
-                    .into_string();
-                self.client.get(&url).send().unwrap();
+                params.insert("auth", key.as_str());
+                self.base_get("logout.php", Some(params)).unwrap();
                 println!("Logout successful!");
             }
             None => println!("Theres no auth_key! Cannot logout because we never logged in!"),
@@ -93,19 +118,20 @@ impl API {
     pub fn search(&mut self, filter: &SearchFilter) -> SearchResult {
         // Create our URL with params
         let mut params = HashMap::new();
-        params.insert("json", "noredirect".to_string());
+        params.insert("json", "noredirect");
         if let Some(name) = &filter.name {
-            params.insert("searchstr", name.clone());
+            params.insert("searchstr", name.as_str());
         }
         if let Some(year) = &filter.year {
-            params.insert("year", year.clone());
+            params.insert("year", year.as_str());
         }
-        let url = Url::parse_with_params("https://passthepopcorn.me/torrents.php", params)
-            .unwrap()
-            .into_string();
 
         // Make the request, parse the JSON
-        let json: SearchResult = self.client.get(&url).send().unwrap().json().unwrap();
+        let json: SearchResult = self
+            .base_get("torrents.php", Some(params))
+            .unwrap()
+            .json()
+            .unwrap();
 
         // If we get a new auth_key from the response, update ours
         if let Some(auth_key) = json.auth_key() {
@@ -121,27 +147,19 @@ impl API {
         &self,
         torrent: &Torrent,
     ) -> Result<File, IntoInnerError<BufWriter<File>>> {
+        // Create our params to make a download request
         let torrent_id: &str = &torrent.Id.unwrap().to_string();
         let mut params = HashMap::new();
         params.insert("action", "download");
         params.insert("id", torrent_id);
 
-        let mut headers = HeaderMap::new();
-        headers.insert(reqwest::header::USER_AGENT, "Wget/1.13.4".parse().unwrap());
-        headers.insert(
-            reqwest::header::ACCEPT_ENCODING,
-            "gzip, deflate".parse().unwrap(),
-        );
+        // Make our request to download
+        let mut res = self.base_get("torrents.php", Some(params)).unwrap();
 
-        let url = Url::parse_with_params("https://passthepopcorn.me/torrents.php", params)
-            .unwrap()
-            .into_string();
-
-        let request = self.client.get(&url).headers(headers);
-        let mut res = request.send().unwrap();
-
+        // The name of the torrent file is stored in content-disposition, call our helper to get it
         let filename = match get_torrent_name_from_header(res.headers()) {
             Some(name) => name,
+            // if our regex fails to grab the filename, use the Release Name
             None => {
                 let release_name = torrent
                     .ReleaseName
@@ -151,8 +169,10 @@ impl API {
             }
         };
 
+        // Create a file to write to, if one with the same name already exists, it overwrites
         let torrent_file = File::create(filename).unwrap();
         let mut buffered_write = BufWriter::new(torrent_file);
+        // Write the contents of the request directly into the file
         res.copy_to(buffered_write.get_mut()).unwrap();
 
         buffered_write.into_inner()
@@ -243,4 +263,23 @@ fn get_torrent_name_from_header(header: &reqwest::header::HeaderMap) -> Option<S
             .map_or(None, |m| Some(String::from(m.as_str()))),
         None => None,
     }
+}
+
+fn get_headers() -> HeaderMap {
+    let headers_literal: HashMap<HeaderName, HeaderValue> = [
+        (
+            reqwest::header::USER_AGENT,
+            "reqwests/0.9.20".parse().unwrap(),
+        ),
+        (
+            reqwest::header::ACCEPT_ENCODING,
+            "gzip, deflate".parse().unwrap(),
+        ),
+        (reqwest::header::CONNECTION, "keep-alive".parse().unwrap()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    HeaderMap::from_iter(headers_literal)
 }
