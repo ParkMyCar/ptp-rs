@@ -35,8 +35,8 @@ impl PtpKeys {
 }
 
 fn read_config_file(config_filename: String) -> Result<TomlConfig, toml::de::Error> {
-    let file_contents = fs::read_to_string(config_filename)
-        .expect("Something went wrong with reading the file!");
+    let file_contents =
+        fs::read_to_string(config_filename).expect("Something went wrong with reading the file!");
     toml::from_str(&file_contents)
 }
 
@@ -44,7 +44,9 @@ pub fn get_config_from_file(config_filename: String) -> PtpKeys {
     let config_from_file = read_config_file(config_filename);
 
     let config = config_from_file.expect("Problem reading the config!");
-    let ptp_keys = config.ptp.expect("Problem with the PTP fields in the config!");
+    let ptp_keys = config
+        .ptp
+        .expect("Problem with the PTP fields in the config!");
 
     PtpKeys::new(
         ptp_keys.username.expect("Error with the username!"),

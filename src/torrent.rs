@@ -30,7 +30,10 @@ impl Torrent {
 
     fn prefix_bytes(&self, power: u32) -> String {
         let base: u64 = 1024;
-        format!("{:.2}", self.bytes().parse::<f64>().unwrap_or(0.0) / base.pow(power) as f64)
+        format!(
+            "{:.2}",
+            self.bytes().parse::<f64>().unwrap_or(0.0) / base.pow(power) as f64
+        )
     }
 
     pub fn kb(&self) -> String {
