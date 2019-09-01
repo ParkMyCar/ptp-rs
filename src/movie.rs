@@ -15,7 +15,7 @@ pub struct Movie {
     pub Cover: Option<String>,
     pub Directors: Option<Vec<Director>>,
     pub GroupId: Option<String>,
-    pub ImbdId: Option<String>,
+    pub ImdbId: Option<String>,
     pub LastUploadTime: Option<String>,
     pub MaxSize: Option<usize>,
     pub Tags: Option<Vec<String>>,
@@ -29,6 +29,10 @@ pub struct Movie {
 impl Movie {
     pub fn title(&self) -> &Option<String> {
         &self.Title
+    }
+
+    pub fn year(&self) -> &Option<String> {
+        &self.Year
     }
 
     pub fn torrents(&self) -> Vec<Torrent> {

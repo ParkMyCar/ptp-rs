@@ -8,14 +8,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     api.login();
 
     let filters = SearchFilter {
-        name: Some("star trek into darkness".to_string()),
-        year: Some("2013".to_string()),
+        name: Some("aquaman".to_string()),
+        year: None/*Some("2013".to_string())*/,
     };
-    let search_resp = api.search(filters);
-    println!("{:#?}", search_resp.movies().pop().unwrap().Title);
+    let search_resp = api.search(&filters);
 
-    for torrent in search_resp.movies().pop().unwrap().torrents() {
-        println!("{}GB", torrent.gb());
+    for movie in search_resp.movies() {
+        println!("Title: {:?}, Year: {:?}", movie.title(), movie.year());
+        let torrent = movie.torrents().iter().next().unwrap().clone();
+        api.download_torrent(&torrent);
     }
 
     api.logout();

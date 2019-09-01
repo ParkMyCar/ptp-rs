@@ -2,10 +2,13 @@ use reqwest;
 use regex::Regex;
 use serde_derive::Deserialize;
 use std::collections::HashMap;
+use std::io::prelude::Write;
+use std::fs::File;
 use url::Url;
 
 use crate::config::PtpKeys;
 use crate::movie::Movie;
+use crate::torrent::Torrent;
 
 /*
 ================================================ API ===============================================
@@ -82,15 +85,15 @@ impl API {
     }
 
     /* Search */
-    pub fn search(&mut self, filter: SearchFilter) -> SearchResult {
+    pub fn search(&mut self, filter: &SearchFilter) -> SearchResult {
         // Create our URL with params
         let mut params = HashMap::new();
         params.insert("json", "noredirect".to_string());
-        if let Some(name) = filter.name {
-            params.insert("searchstr", name);
+        if let Some(name) = &filter.name {
+            params.insert("searchstr", name.clone());
         }
-        if let Some(year) = filter.year {
-            params.insert("year", year);
+        if let Some(year) = &filter.year {
+            params.insert("year", year.clone());
         }
         let url = Url::parse_with_params("https://passthepopcorn.me/torrents.php", params)
             .unwrap()
@@ -111,6 +114,37 @@ impl API {
 
         // Return the Json
         json
+    }
+
+    /* Download Torrent */
+    pub fn download_torrent(&self, torrent: &Torrent) -> File {
+        let torrent_id: &str = &torrent.Id.unwrap().to_string();
+        let mut params = HashMap::new();
+        params.insert("action", "download");
+        params.insert("id", torrent_id);
+        let url = Url::parse_with_params("https://passthepopcorn.me/torrents.php", params)
+            .unwrap()
+            .into_string();
+
+        let mut res = self.client.get(&url)
+            .send()
+            .unwrap();
+
+        let filename = match get_torrent_name_from_header(res.headers()) {
+            Some(name) => name,
+            None => {
+                let release_name = torrent.ReleaseName.
+                                        as_ref()
+                                        .expect("Could not get torrent name!");
+                format!("{}.torrent", release_name)
+            }
+        };
+
+        let file_content = res.text().unwrap();
+        let mut torrent_file = File::create(filename).unwrap();
+        torrent_file.write_all(file_content.as_bytes()).unwrap();
+        
+        torrent_file
     }
 }
 
@@ -181,4 +215,19 @@ fn get_auth_key_from_body(body: &String) -> String {
             .expect("Not able to find an auth key!");
         
         auth_key_cap[1].to_string()
+}
+
+fn get_torrent_name_from_header(header: &reqwest::header::HeaderMap) -> Option<String> {
+    let filename_re = Regex::new(r#"filename="([\w\s.]*torrent)"#).unwrap();    
+    let c_d = header.get(reqwest::header::CONTENT_DISPOSITION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    
+    match filename_re.captures(c_d) {
+        Some(captures) => {
+            captures.get(1).map_or(None, |m| Some(String::from(m.as_str())))
+        },
+        None => None,
     }
+}
