@@ -5,3 +5,6 @@ Cargo.lock
 
 # API Keys
 *.key
+
+# Torrent download directory
+/downloads
