@@ -8,10 +8,7 @@ use std::io::{BufWriter, IntoInnerError};
 use std::iter::FromIterator;
 use url::Url;
 
-use std::thread::sleep;
-use std::time::Duration;
-
-use crate::config::PtpKeys;
+use crate::config::Config;
 use crate::movie::Movie;
 use crate::torrent::Torrent;
 
@@ -28,13 +25,18 @@ pub struct API {
     password: String,
     pass_key: String,
     auth_key: Option<String>,
+
+    download_dir: String,
 }
 impl API {
-    pub fn new(keys: PtpKeys) -> API {
+    pub fn new(config: Config) -> API {
         let client = reqwest::Client::builder()
             .cookie_store(true)
             .build()
             .unwrap();
+
+        let keys = config.ptp;
+        let user_prefs = config.prefs;
 
         API {
             client: client,
@@ -43,6 +45,7 @@ impl API {
             password: keys.password,
             pass_key: keys.pass_key,
             auth_key: None,
+            download_dir: user_prefs.download_dir.unwrap_or(String::from("")),
         }
     }
 
@@ -94,8 +97,6 @@ impl API {
 
         self.auth_key = Some(get_auth_key_from_body(&body));
         println!("Login Successful!");
-
-        sleep(Duration::new(20, 0));
     }
 
     /* Logout */
@@ -170,7 +171,8 @@ impl API {
         };
 
         // Create a file to write to, if one with the same name already exists, it overwrites
-        let torrent_file = File::create(filename).unwrap();
+        let path = format!("{}{}", self.download_dir, filename);
+        let torrent_file = File::create(path).unwrap();
         let mut buffered_write = BufWriter::new(torrent_file);
         // Write the contents of the request directly into the file
         res.copy_to(buffered_write.get_mut()).unwrap();
