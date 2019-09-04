@@ -57,8 +57,8 @@ impl Config {
 }
 
 fn read_config_file(config_filename: String) -> Result<TomlConfig, toml::de::Error> {
-    let file_contents =
-        fs::read_to_string(config_filename).expect("Something went wrong with reading the file!");
+    let file_contents = fs::read_to_string(config_filename)
+        .expect("Something went wrong with reading the config file!");
     toml::from_str(&file_contents)
 }
 
